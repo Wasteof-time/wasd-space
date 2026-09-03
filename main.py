@@ -1,6 +1,6 @@
-def main():
-    print("Hello from wasd-space!")
+import pygame
+import constants
 
-
-if __name__ == "__main__":
-    main()
+#init
+screen = pygame.display.set_mode(size=(constants.res_x , constants.res_y) , vsync=constants.vsync)
+clock = pygame.time.Clock()

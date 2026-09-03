@@ -1,0 +1,7 @@
+{
+  "screen" : {
+    "resolution_x" : 1280,
+    "resolution_y" : 720,
+    "vsync" : false
+  }
+}
