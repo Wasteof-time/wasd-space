@@ -1,5 +1,6 @@
 import pygame
 
+import constants
 from state_machine import State
 from useful_functions import printf
 
@@ -24,7 +25,7 @@ class Level(State):
         keys = pygame.key.get_pressed()
         speed = 220
         mouse = pygame.mouse.get_rel()
-        self.player.x += mouse[0]
+        self.player.x += mouse[0] * constants.sensitivity
 
     def draw(self, screen):
         pygame.draw.rect(screen, (80, 180, 90), self.player)
