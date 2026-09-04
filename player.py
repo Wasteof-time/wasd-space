@@ -1,12 +1,18 @@
+import math
+
 import pygame
 
 import constants
 
 
 class Player:
+    COLOR = (80, 180, 90)
+    ROTATION_MIN_SPEED = 5
+
     def __init__(self, x, y):
-        self.size = constants.player_size
-        self.rect = pygame.Rect(x, y, self.size, self.size)
+        self.width = constants.player_width
+        self.height = constants.player_height
+        self.rect = pygame.Rect(x, y, self.width, self.height)
         self.x = float(x)
         self.y = float(y)
         self.vx = 0.0
@@ -15,6 +21,7 @@ class Player:
         self.max_speed = constants.player_max_speed
         self.drag = constants.player_drag
         self.stop_epsilon = constants.player_stop_epsilon
+        self.angle = 0.0
 
     def update(self, dt, keys):
         self._accelerate(dt, keys)
@@ -22,6 +29,25 @@ class Player:
         self._clamp_speed()
         self._integrate(dt)
         self._apply_bounds(keys)
+        self._update_angle()
+
+    def draw(self, screen):
+        base = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        base.fill(self.COLOR)
+        rotated = pygame.transform.rotate(base, self.angle)
+        screen.blit(
+            rotated,
+            rotated.get_rect(
+                center=(
+                    round(self.x + self.width / 2),
+                    round(self.y + self.height / 2),
+                )
+            ),
+        )
+
+    def _update_angle(self):
+        if math.hypot(self.vx, self.vy) > self.ROTATION_MIN_SPEED:
+            self.angle = math.degrees(math.atan2(-self.vy, self.vx))
 
     def _accelerate(self, dt, keys):
         if keys[pygame.K_a]:
@@ -60,8 +86,8 @@ class Player:
             self.x = 0.0
             if self.vx < 0 or keys[pygame.K_a]:
                 self.vx = 0.0
-        elif self.x >= constants.res_x - self.size:
-            self.x = float(constants.res_x - self.size)
+        elif self.x >= constants.res_x - self.width:
+            self.x = float(constants.res_x - self.width)
             if self.vx > 0 or keys[pygame.K_d]:
                 self.vx = 0.0
 
@@ -69,8 +95,8 @@ class Player:
             self.y = 0.0
             if self.vy < 0 or keys[pygame.K_w]:
                 self.vy = 0.0
-        elif self.y >= constants.res_y - self.size:
-            self.y = float(constants.res_y - self.size)
+        elif self.y >= constants.res_y - self.height:
+            self.y = float(constants.res_y - self.height)
             if self.vy > 0 or keys[pygame.K_s]:
                 self.vy = 0.0
 

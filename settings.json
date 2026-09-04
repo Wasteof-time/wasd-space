@@ -8,11 +8,12 @@
   "controls": {
     "sensitivity": 1.0
   },
-  "player": {
+"player": {
     "acceleration": 1000,
     "max_speed": 600,
     "drag": 45,
     "stop_epsilon": 0,
-    "size": 32
+    "width": 64,
+    "height": 32
   }
 }

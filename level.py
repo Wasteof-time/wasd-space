@@ -28,7 +28,7 @@ class Level(State):
         self.player.update(dt, keys)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, (80, 180, 90), self.player)
+        self.player.draw(screen)
         printf(
             screen,
             (20, 20),
