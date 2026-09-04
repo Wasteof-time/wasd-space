@@ -28,6 +28,7 @@ class Level(State):
         pygame.mouse.set_pos(constants.res_x // 2, constants.res_y // 2)
         mouse = pygame.mouse.get_rel()
         self.player.x += mouse[0] * constants.sensitivity
+        self.player.y += mouse[1] * constants.sensitivity
 
     def draw(self, screen):
         pygame.draw.rect(screen, (80, 180, 90), self.player)
