@@ -21,7 +21,7 @@ class Player:
         self._dampen(dt, keys)
         self._clamp_speed()
         self._integrate(dt)
-        self._apply_bounds()
+        self._apply_bounds(keys)
 
     def _accelerate(self, dt, keys):
         if keys[pygame.K_a]:
@@ -55,7 +55,23 @@ class Player:
         self.x += self.vx * dt
         self.y += self.vy * dt
 
-    def _apply_bounds(self):
-        self.x = max(0.0, min(self.x, constants.res_x - self.size))
-        self.y = max(0.0, min(self.y, constants.res_y - self.size))
+    def _apply_bounds(self, keys):
+        if self.x <= 0:
+            self.x = 0.0
+            if self.vx < 0 or keys[pygame.K_a]:
+                self.vx = 0.0
+        elif self.x >= constants.res_x - self.size:
+            self.x = float(constants.res_x - self.size)
+            if self.vx > 0 or keys[pygame.K_d]:
+                self.vx = 0.0
+
+        if self.y <= 0:
+            self.y = 0.0
+            if self.vy < 0 or keys[pygame.K_w]:
+                self.vy = 0.0
+        elif self.y >= constants.res_y - self.size:
+            self.y = float(constants.res_y - self.size)
+            if self.vy > 0 or keys[pygame.K_s]:
+                self.vy = 0.0
+
         self.rect.topleft = (round(self.x), round(self.y))
