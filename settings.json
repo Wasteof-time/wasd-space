@@ -11,9 +11,9 @@
 "player": {
     "acceleration": 1000,
     "max_speed": 600,
-    "drag": 45,
+    "drag": 500,
     "stop_epsilon": 0,
-    "width": 64,
-    "height": 32
+    "width": 128,
+    "height": 64
   }
 }

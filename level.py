@@ -11,7 +11,8 @@ class Level(State):
         super().__init__(game)
 
     def enter(self):
-        self.player = Player(100, 100)
+        # Player() defaults to spawning its center at the screen center.
+        self.player = Player()
         pygame.mouse.set_visible(False)
 
     def handle_event(self, event):
