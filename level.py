@@ -25,7 +25,16 @@ class Level(State):
     def update(self, dt):
         keys = pygame.key.get_pressed()
         speed = 220
-        pygame.mouse.set_pos(constants.res_x // 2, constants.res_y // 2)
+        border=0.05
+        left_border=constants.res_x*border
+        right_border=constants.res_x*(1-border)
+        top_border=constants.res_y*border
+        bottom_border=constants.res_y*(1-border)
+        mouse_pos=pygame.mouse.get_pos()
+        if mouse_pos[0] <= left_border or mouse_pos[0] >= right_border or mouse_pos[1] <= top_border or mouse_pos[1] >= bottom_border:
+            print("Mouse is outside the screen bounds!")
+            pygame.mouse.set_pos(constants.res_x // 2, constants.res_y // 2)
+            print("succesfully rerouted mouse")
         mouse = pygame.mouse.get_rel()
         self.player.x += mouse[0] * constants.sensitivity
         self.player.y += mouse[1] * constants.sensitivity

@@ -14,6 +14,7 @@ class Game:
         self.screen = pygame.display.set_mode(
             size=(constants.res_x, constants.res_y), vsync=constants.vsync
         )
+        self.screen_rect = self.screen.get_rect()
         self.clock = pygame.time.Clock()
         self.running = True
         self.states = StateManager()
