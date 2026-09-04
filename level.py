@@ -23,14 +23,8 @@ class Level(State):
     def update(self, dt):
         keys = pygame.key.get_pressed()
         speed = 220
-        if keys[pygame.K_w]:
-            self.player.y -= speed * dt
-        if keys[pygame.K_s]:
-            self.player.y += speed * dt
-        if keys[pygame.K_a]:
-            self.player.x -= speed * dt
-        if keys[pygame.K_d]:
-            self.player.x += speed * dt
+        mouse = pygame.mouse.get_rel()
+        self.player.x += mouse[0]
 
     def draw(self, screen):
         pygame.draw.rect(screen, (80, 180, 90), self.player)
