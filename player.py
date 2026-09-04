@@ -7,45 +7,34 @@ import constants
 
 
 class Player:
-    ROTATION_MIN_SPEED = 5
     CAR_FRAME_COUNT = 4
     WEAPON_FRAME_COUNT = 2
 
     def __init__(self, x=None, y=None):
-        self.frames = self._load_frames()
+        self._load_frames()
         self.width = self.frames[0].get_width()
         self.height = self.frames[0].get_height()
 
-        # (x, y) is the desired CENTER of the player.
-        # Default: spawn the player's center at the center of the screen.
         if x is None:
             x = constants.res_x // 2
         if y is None:
-            y = constants.res_y // 2
+            y = constants.res_y * constants.player_rest_y
 
-        # Position is tracked as floats (the top-left corner) for smooth
-        # sub-pixel movement. Subtract half the size so the rect is
-        # centered exactly on the requested (x, y).
         self.x = float(x - self.width / 2)
         self.y = float(y - self.height / 2)
         self.rect = self.frames[0].get_rect(topleft=(round(self.x), round(self.y)))
 
-        # Movement physics, tuned via settings.json -> "player".
         self.vx = 0.0
-        self.vy = 0.0
         self.acceleration = constants.player_acceleration
         self.max_speed = constants.player_max_speed
+        self.default_speed = constants.player_default_speed
+        self.speed = self.default_speed
         self.drag = constants.player_drag
         self.stop_epsilon = constants.player_stop_epsilon
-
-        # Facing heading in degrees, used only for drawing the sprite.
-        # It follows the velocity but never feeds back into it.
-        self.angle = 0.0
-
+        self.rest_y = constants.player_rest_y
+        self.speed_reach = constants.player_speed_reach
 
     def _load_frames(self):
-        # Pre-render every car angle and the weapon sprite on top of it once,
-        # so per-frame drawing is just a rotation + blit.
         cars = [
             pygame.image.load(
                 join("assets", "images", f"character-{i}.webp")
@@ -59,98 +48,126 @@ class Player:
             for i in range(self.WEAPON_FRAME_COUNT)
         ]
 
-        frames = []
-        for i, car in enumerate(cars):
-            composed = car.copy()
-            weapon = weapons[i * self.WEAPON_FRAME_COUNT // self.CAR_FRAME_COUNT]
-            composed.blit(weapon, (0, 0))
-            facing_right = pygame.transform.rotate(composed, -90)
-            native_w, native_h = facing_right.get_size()
-            scale = constants.player_width / native_w
-            size = (
-                constants.player_width,
-                max(1, round(native_h * scale)),
+        native_w, native_h = cars[0].get_size()
+        scale = constants.player_width / native_h
+        size = (
+            max(1, round(native_w * scale)),
+            constants.player_width,
+        )
+        self.frames = [pygame.transform.smoothscale(car, size) for car in cars]
+        self.weapon_frames = []
+        self.weapon_offsets = []
+        for weapon in weapons:
+            bounds = weapon.get_bounding_rect()
+            cropped = weapon.subsurface(bounds).copy()
+            weapon_size = (
+                max(1, round(cropped.get_width() * scale)),
+                max(1, round(cropped.get_height() * scale)),
             )
-            frames.append(pygame.transform.smoothscale(facing_right, size))
-        return frames
+            self.weapon_frames.append(
+                pygame.transform.smoothscale(cropped, weapon_size)
+            )
+            self.weapon_offsets.append((bounds.x * scale, bounds.y * scale))
 
-    def _frame_index(self):
-        # Pick a sprite frame based on how fast the player is moving.
-        speed = math.hypot(self.vx, self.vy)
+    def _weapon_index(self):
         if self.max_speed <= 0:
             return 0
-        t = min(1.0, speed / self.max_speed)
+        t = min(1.0, self.speed / self.max_speed)
+        return min(self.WEAPON_FRAME_COUNT - 1, int(t * self.WEAPON_FRAME_COUNT))
+
+    def _weapon_pivot(self):
+        weapon = self.weapon_frames[0]
+        return (
+            weapon.get_width() * constants.weapon_pivot_x,
+            weapon.get_height() * constants.weapon_pivot_y,
+        )
+
+    def _frame_index(self):
+        if self.max_speed <= 0:
+            return 0
+        t = min(1.0, self.speed / self.max_speed)
         return min(self.CAR_FRAME_COUNT - 1, int(t * self.CAR_FRAME_COUNT))
 
     def update(self, dt, keys):
-        # Order matters: physics first (acceleration, damping, speed clamp,
-        # movement, bounds), then the heading is derived from velocity.
         self._accelerate(dt, keys)
         self._dampen(dt, keys)
         self._clamp_speed()
         self._integrate(dt)
         self._apply_bounds(keys)
-        self._update_angle()
 
     def draw(self, screen):
-        # Draw the sprite rotated to the heading, centered on the player.
-        rotated = pygame.transform.rotate(self.frames[self._frame_index()], self.angle)
-        screen.blit(
-            rotated,
-            rotated.get_rect(
-                center=(
-                    round(self.x + self.width / 2),
-                    round(self.y + self.height / 2),
-                )
-            ),
-        )
+        screen.blit(self.frames[self._frame_index()], (round(self.x), round(self.y)))
+        self._draw_weapon(screen)
 
-    def _update_angle(self):
-        # Face the direction of travel; keep the last heading when idle
-        # (avoid jitter from tiny residual velocities).
-        if math.hypot(self.vx, self.vy) > self.ROTATION_MIN_SPEED:
-            self.angle = math.degrees(math.atan2(-self.vy, self.vx))
+    def _draw_weapon(self, screen):
+        index = self._weapon_index()
+        weapon = self.weapon_frames[index]
+        offset_x, offset_y = self.weapon_offsets[index]
+        pivot = self._weapon_pivot()
+        origin = (
+            self.x + offset_x + pivot[0],
+            self.y + offset_y + pivot[1],
+        )
+        mx, my = pygame.mouse.get_pos()
+        # Sprite faces up; 0° pygame rotation keeps the barrel north.
+        angle = math.degrees(math.atan2(-(my - origin[1]), mx - origin[0])) - 90
+        self._blit_rotated(screen, weapon, origin, pivot, angle)
+
+    @staticmethod
+    def _blit_rotated(screen, image, origin, pivot, angle):
+        image_rect = image.get_rect(
+            topleft=(origin[0] - pivot[0], origin[1] - pivot[1])
+        )
+        offset = pygame.math.Vector2(origin) - image_rect.center
+        rotated_offset = offset.rotate(-angle)
+        rotated = pygame.transform.rotate(image, angle)
+        rect = rotated.get_rect(
+            center=(origin[0] - rotated_offset.x, origin[1] - rotated_offset.y)
+        )
+        screen.blit(rotated, rect)
 
     def _accelerate(self, dt, keys):
-        # Hold a key to build up velocity on that axis (per frame).
         if keys[pygame.K_a]:
             self.vx -= self.acceleration * dt
         if keys[pygame.K_d]:
             self.vx += self.acceleration * dt
         if keys[pygame.K_w]:
-            self.vy -= self.acceleration * dt
+            self.speed += self.acceleration * dt
         if keys[pygame.K_s]:
-            self.vy += self.acceleration * dt
+            self.speed -= self.acceleration * dt
 
     def _dampen(self, dt, keys):
-        # Without input on an axis, decay that axis' velocity toward zero.
         if not (keys[pygame.K_a] or keys[pygame.K_d]):
-            self.vx = self._damp_axis(self.vx, dt)
+            self.vx = self._damp_toward(self.vx, 0.0, dt)
         if not (keys[pygame.K_w] or keys[pygame.K_s]):
-            self.vy = self._damp_axis(self.vy, dt)
+            self.speed = self._damp_toward(self.speed, self.default_speed, dt)
 
-    def _damp_axis(self, velocity, dt):
-        # Snap near-zero speeds to a stop, otherwise step toward zero by drag.
-        if abs(velocity) <= self.stop_epsilon:
-            return 0.0
+    def _damp_toward(self, value, target, dt):
+        if abs(value - target) <= self.stop_epsilon:
+            return target
         step = self.drag * dt
-        if velocity > 0:
-            return max(0.0, velocity - step)
-        return min(0.0, velocity + step)
+        if value > target:
+            return max(target, value - step)
+        return min(target, value + step)
 
     def _clamp_speed(self):
-        # Never let the player travel faster than the configured max speed.
         self.vx = max(-self.max_speed, min(self.max_speed, self.vx))
-        self.vy = max(-self.max_speed, min(self.max_speed, self.vy))
+        self.speed = max(0.0, min(self.max_speed, self.speed))
 
     def _integrate(self, dt):
-        # Move by velocity * time (dt in seconds).
         self.x += self.vx * dt
-        self.y += self.vy * dt
+        # Sit further up the screen as speed rises above cruise.
+        extra = self.speed - self.default_speed
+        span = self.max_speed - self.default_speed
+        if span > 0 and extra > 0:
+            t = min(1.0, extra / span)
+        else:
+            t = 0.0
+        center_y = constants.res_y * (self.rest_y - t * self.speed_reach)
+        self.y = center_y - self.height / 2
+        self.y = max(0.0, min(self.y, constants.res_y - self.height))
 
     def _apply_bounds(self, keys):
-        # Keep the player on screen. When pressed against a wall, drop the
-        # velocity vector component pointing into that wall.
         if self.x <= 0:
             self.x = 0.0
             if self.vx < 0 or keys[pygame.K_a]:
@@ -159,14 +176,5 @@ class Player:
             self.x = float(constants.res_x - self.width)
             if self.vx > 0 or keys[pygame.K_d]:
                 self.vx = 0.0
-
-        if self.y <= 0:
-            self.y = 0.0
-            if self.vy < 0 or keys[pygame.K_w]:
-                self.vy = 0.0
-        elif self.y >= constants.res_y - self.height:
-            self.y = float(constants.res_y - self.height)
-            if self.vy > 0 or keys[pygame.K_s]:
-                self.vy = 0.0
 
         self.rect.topleft = (round(self.x), round(self.y))

@@ -8,12 +8,27 @@
   "controls": {
     "sensitivity": 1.0
   },
-"player": {
+  "player": {
     "acceleration": 1000,
     "max_speed": 600,
+    "default_speed": 200,
     "drag": 500,
     "stop_epsilon": 0,
-    "width": 128,
-    "height": 64
+    "width": 256,
+    "height": 128,
+    "rest_y": 0.72,
+    "speed_reach": 0.16
+  },
+  "weapon": {
+    "pivot_x": 0.5,
+    "pivot_y": 0.75
+  },
+  "road": {
+    "color": "#282828",
+    "lane_count": 3,
+    "speed": 2.0
+  },
+  "bike": {
+    "spawn_ms": 500
   }
 }

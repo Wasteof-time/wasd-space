@@ -11,7 +11,33 @@ sensitivity = json_file["controls"]["sensitivity"]
 
 player_acceleration = json_file["player"]["acceleration"]
 player_max_speed = json_file["player"]["max_speed"]
+# Highway cruise with no extra input. Raise to make the road always feel faster.
+player_default_speed = json_file["player"]["default_speed"]
 player_drag = json_file["player"]["drag"]
 player_stop_epsilon = json_file["player"]["stop_epsilon"]
 player_width = json_file["player"]["width"]
 player_height = json_file["player"]["height"]
+# Vertical rest pose as a fraction of screen height (0 = top, 1 = bottom).
+player_rest_y = json_file["player"]["rest_y"]
+# Extra upward travel at max speed, as a fraction of screen height.
+# Bigger value = the car sits further up the road when you accelerate.
+player_speed_reach = json_file["player"]["speed_reach"]
+
+# Pivot of the roof gun, as a fraction of the weapon sprite (0–1).
+# 0.5, 0.75 = center x, three-quarters down. Tweak until the barrel swings cleanly.
+weapon_pivot_x = json_file["weapon"]["pivot_x"]
+weapon_pivot_y = json_file["weapon"]["pivot_y"]
+
+# Asphalt fill for the whole highway.
+_road_hex = json_file["road"]["color"].lstrip("#")
+road_color = (
+    int(_road_hex[0:2], 16),
+    int(_road_hex[2:4], 16),
+    int(_road_hex[4:6], 16),
+)
+road_lane_count = json_file["road"]["lane_count"]
+# Multiplier on player speed for highway scroll (stripes and bikes).
+road_speed = json_file["road"]["speed"]
+
+# Milliseconds between bike spawns from the top of the road.
+bike_spawn_ms = json_file["bike"]["spawn_ms"]
