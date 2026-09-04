@@ -11,6 +11,7 @@ class Level(State):
 
     def enter(self):
         self.player = pygame.Rect(100, 100, 32, 32)
+        pygame.mouse.set_visible(False)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -24,6 +25,7 @@ class Level(State):
     def update(self, dt):
         keys = pygame.key.get_pressed()
         speed = 220
+        pygame.mouse.set_pos(constants.res_x // 2, constants.res_y // 2)
         mouse = pygame.mouse.get_rel()
         self.player.x += mouse[0] * constants.sensitivity
 
@@ -41,6 +43,9 @@ class Level(State):
 class Pause(State):
     def __init__(self, game):
         super().__init__(game)
+
+    def enter(self):
+        pygame.mouse.set_visible(True)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -64,3 +69,6 @@ class Pause(State):
             "white",
             center=True,
         )
+
+    def exit(self):
+        pygame.mouse.set_visible(False)
