@@ -22,6 +22,7 @@ class StateManager:
     def __init__(self):
         self.stack = []
 
+    @property
     def current(self):
         return self.stack[-1] if self.stack else None
 
@@ -43,4 +44,4 @@ class StateManager:
 
     def clear(self):
         while self.stack:
-            self.stack.pop()
+            self.pop()

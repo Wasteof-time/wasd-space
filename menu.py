@@ -5,18 +5,24 @@ from useful_functions import printf
 
 
 class Menu(State):
-    def __init__(self, screen, clock):
-        super().__init__(screen, clock)
+    def __init__(self, game):
+        super().__init__(game)
 
-    def run(self):
-        while self.is_running:
-            for e in pygame.event.get():
-                if e.type == pygame.QUIT:
-                    self.is_running = False
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                from level import Level
 
-            self.clock.tick(60)
-            self.screen.fill("black")
-            printf(
-                self.screen,
-                (0, 0),
-            )
+                self.game.states.switch(Level(self.game))
+            elif event.key == pygame.K_ESCAPE:
+                self.game.quit()
+
+    def draw(self, screen):
+        printf(
+            screen,
+            (0, 0),
+            "WASD SPACE  -  enter to play",
+            self.game.f_chalk_48,
+            "white",
+            center=True,
+        )
