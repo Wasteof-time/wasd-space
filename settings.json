@@ -3,9 +3,16 @@
     "resolution_x": 1280,
     "resolution_y": 720,
     "vsync": false,
-    "fullscreen": true
+    "fullscreen": false
   },
   "controls": {
     "sensitivity": 1.0
+  },
+  "player": {
+    "acceleration": 1000,
+    "max_speed": 600,
+    "drag": 45,
+    "stop_epsilon": 0,
+    "size": 32
   }
 }

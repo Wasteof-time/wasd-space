@@ -55,7 +55,7 @@ class Game:
             self.screen.fill((12, 12, 16))
             for state in self.states.stack:
                 state.draw(self.screen)
-            printf(self.screen, (self.screen_rect.right-20,20), f"FPS: {self.clock.get_fps():.2f}", self.f_chalk_48, "white")
+            printf(self.screen, (self.screen_rect.right-150,20), f"FPS: {self.clock.get_fps():.2f}", self.f_chalk_48, "white")
             pygame.display.flip()
 
         pygame.quit()
