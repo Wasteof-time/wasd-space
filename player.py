@@ -1,4 +1,5 @@
 import math
+from os.path import join
 
 import pygame
 
@@ -6,12 +7,14 @@ import constants
 
 
 class Player:
-    COLOR = (80, 180, 90)
     ROTATION_MIN_SPEED = 5
+    CAR_FRAME_COUNT = 4
+    WEAPON_FRAME_COUNT = 2
 
     def __init__(self, x, y):
-        self.width = constants.player_width
-        self.height = constants.player_height
+        self.frames = self._load_frames()
+        self.width = self.frames[0].get_width()
+        self.height = self.frames[0].get_height()
         self.rect = pygame.Rect(x, y, self.width, self.height)
         self.x = float(x)
         self.y = float(y)
@@ -23,6 +26,42 @@ class Player:
         self.stop_epsilon = constants.player_stop_epsilon
         self.angle = 0.0
 
+    def _load_frames(self):
+        cars = [
+            pygame.image.load(
+                join("assets", "images", f"character-{i}.webp")
+            ).convert_alpha()
+            for i in range(self.CAR_FRAME_COUNT)
+        ]
+        weapons = [
+            pygame.image.load(
+                join("assets", "images", f"weapon-{i}.webp")
+            ).convert_alpha()
+            for i in range(self.WEAPON_FRAME_COUNT)
+        ]
+
+        frames = []
+        for i, car in enumerate(cars):
+            composed = car.copy()
+            weapon = weapons[i * self.WEAPON_FRAME_COUNT // self.CAR_FRAME_COUNT]
+            composed.blit(weapon, (0, 0))
+            facing_right = pygame.transform.rotate(composed, -90)
+            native_w, native_h = facing_right.get_size()
+            scale = constants.player_width / native_w
+            size = (
+                constants.player_width,
+                max(1, round(native_h * scale)),
+            )
+            frames.append(pygame.transform.smoothscale(facing_right, size))
+        return frames
+
+    def _frame_index(self):
+        speed = math.hypot(self.vx, self.vy)
+        if self.max_speed <= 0:
+            return 0
+        t = min(1.0, speed / self.max_speed)
+        return min(self.CAR_FRAME_COUNT - 1, int(t * self.CAR_FRAME_COUNT))
+
     def update(self, dt, keys):
         self._accelerate(dt, keys)
         self._dampen(dt, keys)
@@ -32,9 +71,7 @@ class Player:
         self._update_angle()
 
     def draw(self, screen):
-        base = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        base.fill(self.COLOR)
-        rotated = pygame.transform.rotate(base, self.angle)
+        rotated = pygame.transform.rotate(self.frames[self._frame_index()], self.angle)
         screen.blit(
             rotated,
             rotated.get_rect(
