@@ -2,7 +2,8 @@
   "screen": {
     "resolution_x": 1280,
     "resolution_y": 720,
-    "vsync": false
+    "vsync": false,
+    "fullscreen": true
   },
   "controls": {
     "sensitivity": 1.0

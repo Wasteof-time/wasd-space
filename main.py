@@ -11,9 +11,16 @@ from state_machine import StateManager
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(
-            size=(constants.res_x, constants.res_y), vsync=constants.vsync
-        )
+        if constants.fs:
+            self.screen = pygame.display.set_mode(
+                size=(constants.res_x, constants.res_y),
+                vsync=constants.vsync,
+                flags=pygame.FULLSCREEN,
+            )
+        else:
+            self.screen = pygame.display.set_mode(
+                size=(constants.res_x, constants.res_y), vsync=constants.vsync
+            )
         self.screen_rect = self.screen.get_rect()
         self.clock = pygame.time.Clock()
         self.running = True

@@ -6,4 +6,5 @@ json_file = json.load(json_file)
 res_x = json_file["screen"]["resolution_x"]
 res_y = json_file["screen"]["resolution_y"]
 vsync = json_file["screen"]["vsync"]
+fs = json_file["screen"]["fullscreen"]
 sensitivity = json_file["controls"]["sensitivity"]
