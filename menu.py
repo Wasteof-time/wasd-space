@@ -8,6 +8,9 @@ class Menu(State):
     def __init__(self, game):
         super().__init__(game)
 
+    def enter(self):
+        pygame.mouse.set_visible(True)
+
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
