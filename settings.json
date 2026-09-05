@@ -29,6 +29,14 @@
     "speed": 2.0
   },
   "bike": {
-    "spawn_ms": 500
+    "spawn_ms": 500,
+    "speed_variation": 0.2
+  },
+"bullet": {
+    "velocity": 2500,
+    "cooldown": 0.15,
+    "ricoshotcount": 10,
+    "ricochet_speed_multiplier": 4,
+    "chargetime": 1.5
   }
 }

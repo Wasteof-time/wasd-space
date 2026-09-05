@@ -49,10 +49,16 @@ class Player:
         ]
 
         native_w, native_h = cars[0].get_size()
-        scale = constants.player_width / native_h
+        # Uniform scale so the car fits the configured player size box while
+        # preserving its aspect ratio (no stretching). Both player_width and
+        # player_height from settings are honored now.
+        scale = min(
+            constants.player_width / native_w,
+            constants.player_height / native_h,
+        )
         size = (
             max(1, round(native_w * scale)),
-            constants.player_width,
+            max(1, round(native_h * scale)),
         )
         self.frames = [pygame.transform.smoothscale(car, size) for car in cars]
         self.weapon_frames = []
@@ -112,6 +118,29 @@ class Player:
         # Sprite faces up; 0° pygame rotation keeps the barrel north.
         angle = math.degrees(math.atan2(-(my - origin[1]), mx - origin[0])) - 90
         self._blit_rotated(screen, weapon, origin, pivot, angle)
+
+    def aim(self):
+        # Muzzle world position and the barrel's direction toward the mouse.
+        # Used to spawn bullets from the tip of the gun.
+        index = self._weapon_index()
+        weapon = self.weapon_frames[index]
+        offset_x, offset_y = self.weapon_offsets[index]
+        pivot = self._weapon_pivot()
+        origin_x = self.x + offset_x + pivot[0]
+        origin_y = self.y + offset_y + pivot[1]
+        mx, my = pygame.mouse.get_pos()
+        dx = mx - origin_x
+        dy = my - origin_y
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return origin_x, origin_y, 0.0, -1.0
+        reach = pivot[1]
+        return (
+            origin_x + dx / dist * reach,
+            origin_y + dy / dist * reach,
+            dx / dist,
+            dy / dist,
+        )
 
     @staticmethod
     def _blit_rotated(screen, image, origin, pivot, angle):

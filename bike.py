@@ -1,5 +1,7 @@
 from os.path import join
 
+import random
+
 import pygame
 
 import constants
@@ -16,6 +18,10 @@ class Bike:
         self.height = self.image.get_height()
         self.x = float(x)
         self.y = float(y)
+        # Random speed factor around the road's scroll speed, so bikes
+        # overtake or lag behind each other.
+        variation = constants.bike_speed_variation
+        self.speed_factor = random.uniform(1 - variation, 1 + variation)
         self.rect = self.image.get_rect(topleft=(round(self.x), round(self.y)))
 
     @staticmethod
@@ -35,7 +41,7 @@ class Bike:
         return cls._image.get_width(), cls._image.get_height()
 
     def update(self, dt, scroll_speed):
-        self.y += scroll_speed * dt
+        self.y += scroll_speed * self.speed_factor * dt
         self.rect.topleft = (round(self.x), round(self.y))
 
     def draw(self, screen):

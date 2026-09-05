@@ -41,3 +41,17 @@ road_speed = json_file["road"]["speed"]
 
 # Milliseconds between bike spawns from the top of the road.
 bike_spawn_ms = json_file["bike"]["spawn_ms"]
+# Fraction of random per-bike speed variation (0 = all bikes match the road).
+# Each bike's downward speed is multiplied by a random factor in [1-v, 1+v].
+bike_speed_variation = json_file["bike"]["speed_variation"]
+
+# Speed of player bullets, in pixels per second.
+bullet_velocity = json_file["bullet"]["velocity"]
+# Minimum seconds between shots.
+bullet_cooldown = json_file["bullet"]["cooldown"]
+# Number of wall bounces a charged ricochet shot survives before leaving.
+bullet_ricoshotcount = json_file["bullet"]["ricoshotcount"]
+# The ricochet shot flies this many times faster than the normal bullet.
+bullet_ricochet_speed_multiplier = json_file["bullet"]["ricochet_speed_multiplier"]
+# Seconds of holding right-click required to fully charge a ricochet shot.
+bullet_chargetime = json_file["bullet"]["chargetime"]
