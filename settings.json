@@ -34,9 +34,10 @@
   },
 "bullet": {
     "velocity": 2500,
-    "cooldown": 0.15,
+    "cooldown": 0.30,
     "ricoshotcount": 10,
     "ricochet_speed_multiplier": 4,
     "chargetime": 1.5
-  }
+  },
+  "hitstop_length": 0.5
 }

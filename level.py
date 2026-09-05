@@ -66,6 +66,11 @@ class Level(State):
         self.health = 3
         # Human-readable name of the level, shown in the HUD and game over.
         self.level_label = "LEVEL 1"
+        # Remaining freeze time after taking damage, and shake time left.
+        self.hitstop = 0.0
+        self.shake = 0.0
+        # Set on the fatal hit; the game-over switch waits for hitstop to end.
+        self.pending_game_over = False
         pygame.time.set_timer(self.SPAWN_BIKE, constants.bike_spawn_ms)
         pygame.mouse.set_visible(True)
 
@@ -181,9 +186,11 @@ class Level(State):
             self._destroy_bike(bike)
             self.health -= 1
             self.score = max(0, self.score - 10)
+            self.hitstop = constants.hitstop_length
+            self.shake = constants.hitstop_length
             if self.health <= 0:
-                self._game_over()
-                return
+                # Defer the game over until the hitstop freeze has elapsed.
+                self.pending_game_over = True
 
     def _game_over(self):
         self.game.states.switch(
@@ -219,6 +226,18 @@ class Level(State):
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
+        # Hitstop: freeze the whole world for a beat after being hit. The
+        # camera shake outlives the stop, decaying over the same duration.
+        if self.hitstop > 0:
+            self.hitstop = max(0.0, self.hitstop - dt)
+            self.shake = max(0.0, self.shake - dt)
+            return
+        # The fatal hit has finished its freeze frame: only now show game over.
+        if self.pending_game_over:
+            self._game_over()
+            return
+        if self.shake > 0:
+            self.shake = max(0.0, self.shake - dt)
         self.shoot_timer = max(0.0, self.shoot_timer - dt)
         if self.charging:
             self.charge += dt
@@ -254,35 +273,47 @@ class Level(State):
         ]
 
     def draw(self, screen):
-        self.road.draw(screen)
+        # Camera shake: render the whole frame to an off-screen surface and
+        # blit it with a decaying random offset, leaving black edges.
+        offset = (0, 0)
+        target = screen
+        if self.shake > 0:
+            frac = max(0.0, self.shake / constants.hitstop_length)
+            amp = 8.0 * frac
+            offset = (random.uniform(-amp, amp), random.uniform(-amp, amp))
+            target = pygame.Surface(screen.get_size())
+        self.road.draw(target)
         for bike in self.bikes:
-            bike.draw(screen)
+            bike.draw(target)
         for bike in self.dying:
-            bike.draw(screen)
+            bike.draw(target)
         for explosion in self.explosions:
-            explosion.draw(screen)
+            explosion.draw(target)
         for bullet in self.bullets:
-            bullet.draw(screen)
+            bullet.draw(target)
         for ricochet in self.ricochets:
-            ricochet.draw(screen)
-        self.player.draw(screen)
+            ricochet.draw(target)
+        self.player.draw(target)
         if self.charging:
-            self._draw_charge(screen)
+            self._draw_charge(target)
         printf(
-            screen,
+            target,
             (20, constants.res_y - 70),
             f"SCORE {self.score}",
             self.game.f_chalk_48,
             "white",
         )
         printf(
-            screen,
+            target,
             (20, 20),
             self.level_label,
             self.game.f_chalk_48,
             "white",
         )
-        self._draw_health(screen)
+        self._draw_health(target)
+        if target is not screen:
+            screen.fill((0, 0, 0))
+            screen.blit(target, (round(offset[0]), round(offset[1])))
 
     def _draw_health(self, screen):
         # Health bar: three squares at the bottom-right, green while intact.
@@ -335,6 +366,9 @@ class Pause(State):
 
 
 class GameOver(State):
+    # Minimum real time before the restart input is accepted.
+    RESTART_DELAY_MS = 2000
+
     def __init__(self, game, score, level_label):
         super().__init__(game)
         self.score = score
@@ -343,6 +377,11 @@ class GameOver(State):
     def enter(self):
         pygame.mouse.set_visible(True)
         pygame.time.set_timer(Level.SPAWN_BIKE, 0)
+        self.start_ticks = pygame.time.get_ticks()
+
+    @property
+    def ready(self):
+        return pygame.time.get_ticks() - self.start_ticks >= self.RESTART_DELAY_MS
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key in (
@@ -350,8 +389,9 @@ class GameOver(State):
             pygame.K_SPACE,
             pygame.K_ESCAPE,
         ):
-            self.game.states.switch(Level(self.game))
-        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.ready:
+                self.game.states.switch(Level(self.game))
+        elif event.type == pygame.MOUSEBUTTONDOWN and self.ready:
             self.game.states.switch(Level(self.game))
 
     def draw(self, screen):
@@ -359,11 +399,19 @@ class GameOver(State):
         overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (0, 0))
         font = self.game.f_chalk_48
+        if self.ready:
+            prompt = "press enter to restart"
+        else:
+            remaining = (
+                self.RESTART_DELAY_MS
+                - (pygame.time.get_ticks() - self.start_ticks)
+            ) / 1000
+            prompt = f"restart in {max(0, remaining):.1f}s"
         lines = [
             ("GAME OVER", "red"),
             (f"SCORE {self.score}", "white"),
             (self.level_label, "white"),
-            ("press enter to restart", "white"),
+            (prompt, "white"),
         ]
         cx = screen.get_width() // 2
         step = font.get_height() + 20

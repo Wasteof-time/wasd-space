@@ -55,3 +55,7 @@ bullet_ricoshotcount = json_file["bullet"]["ricoshotcount"]
 bullet_ricochet_speed_multiplier = json_file["bullet"]["ricochet_speed_multiplier"]
 # Seconds of holding right-click required to fully charge a ricochet shot.
 bullet_chargetime = json_file["bullet"]["chargetime"]
+
+# Seconds the game freezes (hitstop) after the player takes damage, paired
+# with a short camera shake.
+hitstop_length = json_file["hitstop_length"]

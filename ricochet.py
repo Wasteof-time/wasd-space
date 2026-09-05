@@ -54,6 +54,7 @@ class Ricochet:
             return
         if self.y - self.RADIUS <= 0:
             self.y = float(self.RADIUS)
+            
             self.vy = abs(self.vy)
             self.bounces -= 1
         elif self.y + self.RADIUS >= constants.res_y:
