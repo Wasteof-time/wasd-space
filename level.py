@@ -128,11 +128,12 @@ class Level(State):
         self.ricochets.append(Ricochet(x, y, dx, dy))
 
     def _draw_charge(self, screen):
-        # Growing red ring at the gun muzzle while right-click is held.
+        # Shrinking red ring at the gun muzzle while right-click is held:
+        # big at the start of the charge, squeezing down to full.
         # Turns yellow with a center dot when fully charged and ready to fire.
         x, y, _, _ = self.player.aim()
         t = min(1.0, self.charge / constants.bullet_chargetime)
-        radius = 6 + t * 22
+        radius = 28 - t * 22
         cx = cy = 36
         surface = pygame.Surface((72, 72), pygame.SRCALPHA)
         pygame.draw.circle(surface, (230, 60, 60, 70), (cx, cy), round(radius))

@@ -4,7 +4,7 @@ import constants
 
 
 class Ricochet:
-    RADIUS = 8
+    RADIUS = 16
     COLOR = (220, 60, 60)
     TRAIL_LIFE_MS = 250
     TRAIL_COLOR = (220, 60, 60)
@@ -77,12 +77,20 @@ class Ricochet:
         surface = pygame.Surface(
             (max_x - min_x, max_y - min_y), pygame.SRCALPHA
         )
+        # Trail thickness scales with the bullet's own size.
+        max_width = max(2, round(self.RADIUS * 0.75))
         for i in range(1, len(self.trail)):
             x1, y1, t1 = self.trail[i - 1]
-            x2, y2, _ = self.trail[i]
-            age = now - t1
-            alpha = max(0, round(255 * (1 - age / self.TRAIL_LIFE_MS)))
-            width = max(1, round(3 * (1 - age / self.TRAIL_LIFE_MS)))
+            x2, y2, t2 = self.trail[i]
+            # Quadratic falloff across the segment's lifetime for a smooth,
+            # rounded fade-out instead of a linear one.
+            age = now - (t1 + t2) / 2
+            fade = max(0.0, 1 - age / self.TRAIL_LIFE_MS)
+            fade *= fade
+            alpha = round(255 * fade)
+            if alpha <= 0:
+                continue
+            width = max(1, round(max_width * fade))
             pygame.draw.line(
                 surface,
                 (*self.TRAIL_COLOR, alpha),
