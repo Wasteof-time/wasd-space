@@ -32,6 +32,9 @@ class Game:
         self.f_chalk_48 = pygame.font.Font(
             join("assets", "fonts", "Chalk Board.ttf"), 48
         )
+        self.f_chalk_28 = pygame.font.Font(
+            join("assets", "fonts", "Chalk Board.ttf"), 28
+        )
 
     def quit(self):
         self.running = False

@@ -39,5 +39,23 @@
     "ricochet_speed_multiplier": 4,
     "chargetime": 1.5
   },
+  "ammo": {
+    "start": 10,
+    "regen_delay": 5.0,
+    "drop_min": 1,
+    "drop_max": 5,
+    "red_drop_rate": 0.2
+  },
+  "magnet": {
+    "drop_rate": 0.1,
+    "radius": 360,
+    "duration": 8.0,
+    "force": 900.0
+  },
+  "blast": {
+    "drop_rate": 0.1,
+    "radius": 180,
+    "duration": 8.0
+  },
   "hitstop_length": 0.5
 }

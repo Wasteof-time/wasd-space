@@ -56,6 +56,29 @@ bullet_ricochet_speed_multiplier = json_file["bullet"]["ricochet_speed_multiplie
 # Seconds of holding right-click required to fully charge a ricochet shot.
 bullet_chargetime = json_file["bullet"]["chargetime"]
 
+# Normal ammo the player starts with.
+ammo_start = json_file["ammo"]["start"]
+# Seconds after hitting 0 ammo until the single safety bullet is granted.
+ammo_regen_delay = json_file["ammo"]["regen_delay"]
+# How many bullets are dropped when a motorcycle is destroyed.
+ammo_drop_min = json_file["ammo"]["drop_min"]
+ammo_drop_max = json_file["ammo"]["drop_max"]
+# Probability (0–1) that a destroyed motorcycle also drops a red bullet.
+ammo_red_drop_rate = json_file["ammo"]["red_drop_rate"]
+
+# Magnet pickup: pulls dropped ammo toward the player. Each power-up is fully
+# configured from JSON: its drop rate (0–1 per destroyed bike), the radius of
+# its aura, the duration it stays active, and (magnet only) the pull strength.
+magnet_drop_rate = json_file["magnet"]["drop_rate"]
+magnet_radius = json_file["magnet"]["radius"]
+magnet_duration = json_file["magnet"]["duration"]
+magnet_force = json_file["magnet"]["force"]
+
+# Blast (orange) pickup: destroys any bike inside its aura.
+blast_drop_rate = json_file["blast"]["drop_rate"]
+blast_radius = json_file["blast"]["radius"]
+blast_duration = json_file["blast"]["duration"]
+
 # Seconds the game freezes (hitstop) after the player takes damage, paired
 # with a short camera shake.
 hitstop_length = json_file["hitstop_length"]

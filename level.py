@@ -1,3 +1,4 @@
+import math
 import random
 
 import pygame
@@ -6,11 +7,15 @@ import constants
 from bike import Bike
 from bullet import Bullet
 from explosion import Explosion
+from pickup import Pickup
 from player import Player
 from ricochet import Ricochet
 from road import Road
 from state_machine import State
 from useful_functions import printf
+
+MAGNET_COLOR = (110, 185, 255)
+BLAST_COLOR = (255, 165, 60)
 
 
 def _segment_hits_rect(x1, y1, x2, y2, rect):
@@ -58,9 +63,21 @@ class Level(State):
         self.explosions = []
         self.bullets = []
         self.ricochets = []
+        self.pickups = []
         self.shoot_timer = 0.0
         self.charging = False
         self.charge = 0.0
+        # Normal ammo and the red ammo that fuels the charged ricochet.
+        self.ammo = constants.ammo_start
+        self.red_ammo = 0
+        # Remaining seconds of magnet pull on dropped ammo (0 = inactive).
+        self.magnet_time = 0.0
+        # Remaining seconds of the blast aura that destroys bikes (0 = off).
+        self.blast_time = 0.0
+        self.blast_radius = constants.blast_radius
+        # Safety net: once at 0 ammo, one bullet arrives `regen_delay` later.
+        self.regen_armed = False
+        self.regen_at = 0
         self.score = 0
         # Health squares remaining before game over.
         self.health = 3
@@ -83,7 +100,7 @@ class Level(State):
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 self._shoot()
-            elif event.button == 3:
+            elif event.button == 3 and self.red_ammo > 0:
                 self.charging = True
                 self.charge = 0.0
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
@@ -115,16 +132,22 @@ class Level(State):
 
     def _shoot(self):
         # Fire a bullet from the gun's muzzle toward the mouse, unless the
-        # shot cooldown hasn't elapsed yet.
-        if self.shoot_timer > 0:
+        # shot cooldown hasn't elapsed yet or there is no ammo left.
+        if self.shoot_timer > 0 or self.ammo <= 0:
             return
         x, y, dx, dy = self.player.aim()
+        self.ammo -= 1
+        self._arm_regen_if_empty()
         self.bullets.append(Bullet(x, y, dx, dy))
         self.shoot_timer = constants.bullet_cooldown
 
     def _shoot_ricochet(self):
         # Fire a charged bouncing shot from the gun's muzzle toward the mouse.
+        # Requires a red bullet to leave the barrel.
+        if self.red_ammo <= 0:
+            return
         x, y, dx, dy = self.player.aim()
+        self.red_ammo -= 1
         self.ricochets.append(Ricochet(x, y, dx, dy))
 
     def _draw_charge(self, screen):
@@ -177,6 +200,88 @@ class Level(State):
         self.bikes.remove(bike)
         self.dying.append(bike)
         self.explosions.append(Explosion(bike))
+        self._spawn_drops(bike)
+
+    def _spawn_drops(self, bike):
+        # A destroyed motorcycle drops 1-5 bullets, with a chance of an
+        # extra red bullet that powers the charged ricochet shot. Each drop
+        # gets a small random kick outward from the blast so the loot pops
+        # out with the explosion before settling back into the road scroll.
+        cx, cy = bike.rect.center
+
+        def scattered(pickup_type, speed_range):
+            angle = random.uniform(0, math.tau)
+            speed = random.uniform(*speed_range)
+            return Pickup(
+                cx,
+                cy,
+                pickup_type,
+                math.cos(angle) * speed,
+                math.sin(angle) * speed,
+            )
+
+        for _ in range(
+            random.randint(constants.ammo_drop_min, constants.ammo_drop_max)
+        ):
+            self.pickups.append(scattered(Pickup.TYPE_BULLET, (80, 220)))
+        if random.random() < constants.ammo_red_drop_rate:
+            self.pickups.append(scattered(Pickup.TYPE_RED, (100, 260)))
+        if random.random() < constants.magnet_drop_rate:
+            self.pickups.append(scattered(Pickup.TYPE_MAGNET, (100, 240)))
+        if random.random() < constants.blast_drop_rate:
+            self.pickups.append(scattered(Pickup.TYPE_BLAST, (100, 240)))
+
+    def _collect_pickups(self):
+        # Driving through a drop banks its ammo, or enables a power-up.
+        for pickup in list(self.pickups):
+            if not pickup.rect.colliderect(self.player.rect):
+                continue
+            if pickup.type == Pickup.TYPE_BULLET:
+                self.ammo += 1
+            elif pickup.type == Pickup.TYPE_RED:
+                self.red_ammo += 1
+            elif pickup.type == Pickup.TYPE_MAGNET:
+                self.magnet_time = constants.magnet_duration
+            elif pickup.type == Pickup.TYPE_BLAST:
+                self.blast_time = constants.blast_duration
+            self.pickups.remove(pickup)
+
+    def _apply_magnet(self, dt):
+        # While the magnet is active, dropped ammo inside the green radius is
+        # pulled toward the player, harder the closer it gets.
+        if self.magnet_time <= 0:
+            return
+        pcx, pcy = self.player.rect.center
+        radius = constants.magnet_radius
+        for pickup in self.pickups:
+            dx = pcx - pickup.x
+            dy = pcy - pickup.y
+            dist = math.hypot(dx, dy)
+            if dist >= radius or dist == 0:
+                continue
+            pull = constants.magnet_force * (1 - dist / radius) * dt
+            pickup.x += dx / dist * pull
+            pickup.y += dy / dist * pull
+            pickup.rect.center = (round(pickup.x), round(pickup.y))
+
+    def _arm_regen_if_empty(self):
+        # Arm the single safety bullet the moment the player runs dry.
+        if self.ammo == 0 and not self.regen_armed:
+            self.regen_armed = True
+            self.regen_at = (
+                pygame.time.get_ticks() + constants.ammo_regen_delay * 1000
+            )
+
+    def _maybe_regenerate(self):
+        # Grant the safety bullet once, if still empty when the timer lands.
+        # Picking up ammo in between cancels the pending regen.
+        if not self.regen_armed:
+            return
+        if self.ammo > 0:
+            self.regen_armed = False
+        elif pygame.time.get_ticks() >= self.regen_at:
+            self.ammo += 1
+            self.regen_armed = False
 
     def _player_hit(self):
         # Touching a motorcycle destroys it, but costs one health square and
@@ -192,6 +297,25 @@ class Level(State):
             if self.health <= 0:
                 # Defer the game over until the hitstop freeze has elapsed.
                 self.pending_game_over = True
+
+    @staticmethod
+    def _circle_touches_rect(cx, cy, radius, rect):
+        # Nearest point of the rect to (cx, cy); touch if within the circle.
+        nx = max(rect.left, min(cx, rect.right))
+        ny = max(rect.top, min(cy, rect.bottom))
+        return (cx - nx) ** 2 + (cy - ny) ** 2 <= radius * radius
+
+    def _blast_bikes(self):
+        # While the orange aura is active it destroys every bike that touches
+        # it, scoring a point and dropping loot like a bullet kill.
+        if self.blast_time <= 0:
+            return
+        cx, cy = self.player.rect.center
+        for bike in list(self.bikes):
+            if not self._circle_touches_rect(cx, cy, self.blast_radius, bike.rect):
+                continue
+            self._destroy_bike(bike)
+            self.score += 1
 
     def _game_over(self):
         self.game.states.switch(
@@ -240,6 +364,7 @@ class Level(State):
         if self.shake > 0:
             self.shake = max(0.0, self.shake - dt)
         self.shoot_timer = max(0.0, self.shoot_timer - dt)
+        self._maybe_regenerate()
         if self.charging:
             self.charge += dt
             # Auto-fire the moment the charge is complete, no release needed.
@@ -254,6 +379,14 @@ class Level(State):
             bike.update(dt, scroll)
         self._separate_bikes()
         self.bikes = [bike for bike in self.bikes if not bike.offscreen()]
+        for pickup in self.pickups:
+            pickup.update(dt, scroll)
+        self.pickups = [pickup for pickup in self.pickups if not pickup.offscreen()]
+        self._apply_magnet(dt)
+        if self.magnet_time > 0:
+            self.magnet_time = max(0.0, self.magnet_time - dt)
+        if self.blast_time > 0:
+            self.blast_time = max(0.0, self.blast_time - dt)
         for bullet in self.bullets:
             bullet.update(dt)
         self.bullets = [bullet for bullet in self.bullets if not bullet.offscreen()]
@@ -261,7 +394,9 @@ class Level(State):
             ricochet.update(dt)
         self.ricochets = [r for r in self.ricochets if not r.offscreen()]
         self._handle_collisions()
+        self._blast_bikes()
         self._player_hit()
+        self._collect_pickups()
         for explosion in self.explosions:
             explosion.update(dt)
             if explosion.engulfed:
@@ -284,12 +419,15 @@ class Level(State):
             offset = (random.uniform(-amp, amp), random.uniform(-amp, amp))
             target = pygame.Surface(screen.get_size())
         self.road.draw(target)
+        self._draw_auras(target)
         for bike in self.bikes:
             bike.draw(target)
         for bike in self.dying:
             bike.draw(target)
         for explosion in self.explosions:
             explosion.draw(target)
+        for pickup in self.pickups:
+            pickup.draw(target)
         for bullet in self.bullets:
             bullet.draw(target)
         for ricochet in self.ricochets:
@@ -312,9 +450,57 @@ class Level(State):
             "white",
         )
         self._draw_health(target)
+        self._draw_ammo(target)
         if target is not screen:
             screen.fill((0, 0, 0))
             screen.blit(target, (round(offset[0]), round(offset[1])))
+
+    def _draw_auras(self, screen):
+        # Power-up rings around the player, each showing the remaining time
+        # as an arc that drains clockwise (the gap spreads clockwise from the
+        # top). The magnet ring is always larger than the blast ring, so it is
+        # drawn first: the smaller blast aura sits on top.
+        if self.magnet_time > 0:
+            self._draw_aura(
+                screen,
+                MAGNET_COLOR,
+                constants.magnet_radius,
+                min(1.0, self.magnet_time / constants.magnet_duration),
+            )
+        if self.blast_time > 0:
+            self._draw_aura(
+                screen,
+                BLAST_COLOR,
+                self.blast_radius,
+                min(1.0, self.blast_time / constants.blast_duration),
+            )
+
+    def _draw_aura(self, screen, color, radius, remaining):
+        # Faint filled ring plus the remaining time lit as a solid arc that
+        # drains clockwise. The lit arc is built from filled circles along the
+        # ring so the sweep looks smooth with no gaps between samples.
+        cx, cy = self.player.rect.center
+        r = radius
+        surface = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(surface, (*color, 22), (r, r), r)
+        pygame.draw.circle(surface, (*color, 70), (r, r), r, 2)
+        fraction = min(1.0, max(0.0, remaining))
+        if fraction > 0:
+            arc_r = r - 3
+            ring_width = 6
+            steps = max(1, int(math.ceil(fraction * 200)))
+            step_angle = fraction * math.tau / steps
+            # Overlap the sample dots so adjacent circles merge seamlessly.
+            dot_radius = max(3, int(math.ceil(arc_r * step_angle / 2)) + 1)
+            for i in range(steps + 1):
+                angle = -math.tau / 4 + (1.0 - fraction) * math.tau + fraction * math.tau * i / steps
+                pygame.draw.circle(
+                    surface,
+                    (*color, 160),
+                    (round(r + arc_r * math.cos(angle)), round(r + arc_r * math.sin(angle))),
+                    dot_radius,
+                )
+        screen.blit(surface, (round(cx - r), round(cy - r)))
 
     def _draw_health(self, screen):
         # Health bar: three squares at the bottom-right, green while intact.
@@ -330,6 +516,30 @@ class Level(State):
             else:
                 pygame.draw.rect(screen, (60, 60, 60), rect)
                 pygame.draw.rect(screen, (35, 35, 35), rect, 2)
+
+    def _draw_ammo(self, screen):
+        # Ammo counters stacked just above the health squares: regular
+        # bullets (amber) and the red bullets that fuel the ricochet.
+        size = 24
+        gap = size + 8
+        hx = constants.res_x - 3 * gap + gap - size - 20
+        hy = constants.res_y - size - 20
+        font = self.game.f_chalk_28
+        line_h = font.get_height() + 8
+        rows = (
+            (self.ammo, Pickup.COLORS[Pickup.TYPE_BULLET]),
+            (self.red_ammo, Pickup.COLORS[Pickup.TYPE_RED]),
+        )
+        x_end = hx - 16
+        for i, (count, color) in enumerate(rows):
+            text = font.render(str(count), True, "white")
+            cy = hy - 8 - (len(rows) - i) * line_h
+            blob_x = x_end - text.get_width() - 16
+            pygame.draw.circle(screen, color, (blob_x, cy), 9)
+            pygame.draw.circle(screen, (20, 20, 24), (blob_x, cy), 11, 2)
+            screen.blit(
+                text, (x_end - text.get_width(), cy - text.get_height() // 2)
+            )
 
 
 class Pause(State):
